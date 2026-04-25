@@ -1,0 +1,6 @@
+@FleetLedger.Api_HostAddress = http://localhost:5121
+
+GET {{FleetLedger.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
