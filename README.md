@@ -1,4 +1,6 @@
-# FleetLedger
+# FleetLedger - API de gestion de flotas vehiculares
+
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/d07d6bef-0149-4e48-a41b-bdb5b9832980" />
 
 API REST de gestión de flotas vehiculares con **Event Sourcing + CQRS** para vehículos y **CRUD tradicional con EF Core** para entidades de referencia.
 
