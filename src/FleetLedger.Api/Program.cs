@@ -1,9 +1,20 @@
+using FleetLedger.Application;
+using FleetLedger.Application.Handlers;
+using FleetLedger.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = builder.Configuration.GetConnectionString("Default")
     ?? throw new InvalidOperationException("Connection string 'Default' not found.");
+
+builder.Services.AddDbContext<FleetLedgerDbContext>(opts =>
+    opts.UseNpgsql(connectionString));
+
+builder.Services.AddControllers();
+builder.Services.AddScoped<IDepotRepository, DepotRepository>();
+builder.Services.AddScoped<DepotHandler>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -24,6 +35,8 @@ app.UseSwaggerUI(c =>
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "FleetLedger API v1");
     c.RoutePrefix = string.Empty;
 });
+
+app.MapControllers();
 
 app.MapGet("/health", () => Results.Ok(new
 {
