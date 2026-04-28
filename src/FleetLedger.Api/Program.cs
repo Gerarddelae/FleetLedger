@@ -15,6 +15,8 @@ builder.Services.AddDbContext<FleetLedgerDbContext>(opts =>
 builder.Services.AddControllers();
 builder.Services.AddScoped<IDepotRepository, DepotRepository>();
 builder.Services.AddScoped<DepotHandler>();
+builder.Services.AddScoped<IDriverRepository, DriverRepository>();
+builder.Services.AddScoped<DriverHandler>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
