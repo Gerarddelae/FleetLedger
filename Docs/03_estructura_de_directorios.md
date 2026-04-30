@@ -5,17 +5,14 @@
 ```
 FleetLedger/
 ├── src/
-│   ├── FleetLedger.Api/                  # Capa de presentación (Minimal APIs)
+│   ├── FleetLedger.Api/                  # Capa de presentación (Controllers)
 │   ├── FleetLedger.Domain/               # Dominio puro (sin dependencias de infraestructura)
 │   ├── FleetLedger.Application/          # Casos de uso, comandos, queries e interfaces de repositorio
 │   └── FleetLedger.Infrastructure/       # Implementaciones de repositorios, Marten, EF Core, PostgreSQL
 ├── tests/
 │   ├── FleetLedger.Domain.Tests/         # Tests unitarios del agregado e invariantes
 │   └── FleetLedger.Integration.Tests/    # Tests de integración con base de datos real
-├── scripts/
-│   └── seed/                             # Scripts de datos de demo
 ├── docker-compose.yml
-├── docker-compose.override.yml           # Configuración de desarrollo local
 └── README.md
 ```
 

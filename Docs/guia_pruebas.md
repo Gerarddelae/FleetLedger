@@ -35,8 +35,11 @@ curl -X POST http://localhost:5000/depots \
   "address": "Av. Principal 123",
   "city": "Buenos Aires",
   "region": "CABA",
+  "managerName": null,
+  "phone": null,
   "active": true,
-  "createdAt": "2026-04-28T..."
+  "createdAt": "2026-04-28T...",
+  "updatedAt": "2026-04-28T..."
 }
 ```
 
@@ -64,14 +67,7 @@ curl http://localhost:5000/depots/DEP-INEXISTENTE
 **Respuesta:**
 ```json
 {
-  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.5",
-  "title": "Not Found",
-  "status": 404,
-  "detail": "Depot 'DEP-INEXISTENTE' not found.",
-  "extensions": {
-    "depotId": "DEP-INEXISTENTE",
-    "errorCode": "DEPOT_NOT_FOUND"
-  }
+  "error": "Depot 'DEP-INEXISTENTE' not found."
 }
 ```
 
@@ -129,6 +125,9 @@ curl "http://localhost:5000/depots?active=true"
 
 # Solo inactivos
 curl "http://localhost:5000/depots?active=false"
+
+# Por region
+curl "http://localhost:5000/depots?region=CABA"
 ```
 
 ---
@@ -153,7 +152,8 @@ curl -X POST http://localhost:5000/drivers \
   "phone": null,
   "depotId": null,
   "active": true,
-  "createdAt": "2026-04-28T..."
+  "createdAt": "2026-04-28T...",
+  "updatedAt": "2026-04-28T..."
 }
 ```
 
@@ -184,6 +184,20 @@ curl http://localhost:5000/drivers
 #### Buscar Driver por ID - 200 OK
 ```bash
 curl http://localhost:5000/drivers/DRV-20260428-0001
+```
+
+---
+
+#### Buscar Driver inexistente - 404 Not Found
+```bash
+curl http://localhost:5000/drivers/DRV-INEXISTENTE
+```
+
+**Respuesta:**
+```json
+{
+  "error": "Driver 'DRV-INEXISTENTE' not found."
+}
 ```
 
 ---
@@ -260,17 +274,13 @@ curl -X POST http://localhost:5000/drivers \
 ```json
 {
   "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
-  "title": "Validation Failed",
+  "title": "One or more validation errors occurred.",
   "status": 400,
-  "detail": "...",
-  "extensions": {
-    "errorCode": "VALIDATION_ERROR",
-    "errors": [
-      { "propertyName": "FullName", "errorMessage": "FullName is required." },
-      { "propertyName": "LicenseNumber", "errorMessage": "LicenseNumber is required." },
-      { "propertyName": "LicenseCategory", "errorMessage": "LicenseCategory is required." },
-      { "propertyName": "LicenseExpires", "errorMessage": "License must not be expired." }
-    ]
+  "errors": {
+    "FullName": [ "FullName is required." ],
+    "LicenseNumber": [ "LicenseNumber is required." ],
+    "LicenseCategory": [ "LicenseCategory is required." ],
+    "LicenseExpires": [ "License must not be expired." ]
   }
 }
 ```
