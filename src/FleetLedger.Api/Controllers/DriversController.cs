@@ -1,6 +1,7 @@
 using FleetLedger.Application;
 using FleetLedger.Application.Handlers;
 using FleetLedger.Domain;
+using FleetLedger.Api.Contracts.Requests;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FleetLedger.Api.Controllers;
@@ -18,26 +19,14 @@ public class DriversController : ControllerBase
 
     [HttpPost]
     [ProducesResponseType(typeof(Driver), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status409Conflict)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status422UnprocessableEntity)]
-    public async Task<ActionResult<Driver>> Create([FromBody] CreateDriverCommand cmd, CancellationToken ct)
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult<Driver>> Create([FromBody] CreateDriverRequest req, CancellationToken ct)
     {
-        try
-        {
-            var driver = await _handler.Handle(cmd, ct);
-            return CreatedAtAction(nameof(GetById), new { id = driver.Id }, driver);
-        }
-        catch (InvalidOperationException ex)
-        {
-            if (ex.Message.Contains("inactive"))
-                return UnprocessableEntity(new { error = ex.Message });
-            return Conflict(new { error = ex.Message });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { error = ex.Message });
-        }
+        var cmd = new CreateDriverCommand(req.FullName, req.LicenseNumber, req.LicenseCategory, req.LicenseExpires, req.Phone, req.DepotId);
+        var driver = await _handler.Handle(cmd, ct);
+        return CreatedAtAction(nameof(GetById), new { id = driver.Id }, driver);
     }
 
     [HttpGet]
@@ -50,7 +39,7 @@ public class DriversController : ControllerBase
 
     [HttpGet("{id}")]
     [ProducesResponseType(typeof(Driver), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<Driver>> GetById(string id, CancellationToken ct)
     {
         var driver = await _handler.Handle(new GetDriverByIdQuery(id), ct);
@@ -61,42 +50,22 @@ public class DriversController : ControllerBase
 
     [HttpPut("{id}")]
     [ProducesResponseType(typeof(Driver), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status409Conflict)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status422UnprocessableEntity)]
-    public async Task<ActionResult<Driver>> Update(string id, [FromBody] UpdateDriverCommand cmd, CancellationToken ct)
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult<Driver>> Update(string id, [FromBody] UpdateDriverRequest req, CancellationToken ct)
     {
-        try
-        {
-            var updatedCmd = new UpdateDriverCommand(id, cmd.FullName, cmd.LicenseNumber, cmd.LicenseCategory, cmd.LicenseExpires, cmd.Phone, cmd.DepotId);
-            var driver = await _handler.Handle(updatedCmd, ct);
-            return Ok(driver);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { error = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            if (ex.Message.Contains("inactive"))
-                return UnprocessableEntity(new { error = ex.Message });
-            return Conflict(new { error = ex.Message });
-        }
+        var cmd = new UpdateDriverCommand(id, req.FullName, req.LicenseNumber, req.LicenseCategory, req.LicenseExpires, req.Phone, req.DepotId);
+        var driver = await _handler.Handle(cmd, ct);
+        return Ok(driver);
     }
 
     [HttpDelete("{id}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(string id, CancellationToken ct)
     {
-        try
-        {
-            await _handler.Handle(new DeactivateDriverCommand(id), ct);
-            return NoContent();
-        }
-        catch (KeyNotFoundException)
-        {
-            return NotFound(new { error = $"Driver '{id}' not found." });
-        }
+        await _handler.Handle(new DeactivateDriverCommand(id), ct);
+        return NoContent();
     }
 }

@@ -1,5 +1,6 @@
 using FleetLedger.Application;
 using FleetLedger.Domain;
+using FleetLedger.Domain.Exceptions;
 
 namespace FleetLedger.Application.Handlers;
 
@@ -18,14 +19,14 @@ public class DriverHandler
     {
         var exists = await _repository.ExistsWithLicenseNumberAsync(cmd.LicenseNumber, ct);
         if (exists)
-            throw new InvalidOperationException($"Driver with license number '{cmd.LicenseNumber}' already exists.");
+            throw new LicenseNumberAlreadyExistsException(cmd.LicenseNumber);
 
         if (!string.IsNullOrEmpty(cmd.DepotId))
         {
             var depot = await _depotRepository.GetByIdAsync(cmd.DepotId, ct)
-                ?? throw new KeyNotFoundException($"Depot '{cmd.DepotId}' not found.");
+                ?? throw new DepotNotFoundException(cmd.DepotId);
             if (!depot.Active)
-                throw new InvalidOperationException($"Depot '{cmd.DepotId}' is inactive and cannot be assigned.");
+                throw new DepotInactiveException(cmd.DepotId);
         }
 
         var driver = Driver.Create(
@@ -43,18 +44,18 @@ public class DriverHandler
     public async Task<Driver> Handle(UpdateDriverCommand cmd, CancellationToken ct)
     {
         var driver = await _repository.GetByIdAsync(cmd.Id, ct)
-            ?? throw new KeyNotFoundException($"Driver '{cmd.Id}' not found.");
+            ?? throw new DriverNotFoundException(cmd.Id);
 
         var existingWithLicense = await _repository.FindByLicenseNumberAsync(cmd.LicenseNumber, ct);
         if (existingWithLicense != null && existingWithLicense.Id != cmd.Id)
-            throw new InvalidOperationException($"Driver with license number '{cmd.LicenseNumber}' already exists.");
+            throw new LicenseNumberAlreadyExistsException(cmd.LicenseNumber);
 
         if (!string.IsNullOrEmpty(cmd.DepotId))
         {
             var depot = await _depotRepository.GetByIdAsync(cmd.DepotId, ct)
-                ?? throw new KeyNotFoundException($"Depot '{cmd.DepotId}' not found.");
+                ?? throw new DepotNotFoundException(cmd.DepotId);
             if (!depot.Active)
-                throw new InvalidOperationException($"Depot '{cmd.DepotId}' is inactive and cannot be assigned.");
+                throw new DepotInactiveException(cmd.DepotId);
         }
 
         driver.Update(
@@ -73,7 +74,7 @@ public class DriverHandler
     public async Task Handle(DeactivateDriverCommand cmd, CancellationToken ct)
     {
         var driver = await _repository.GetByIdAsync(cmd.Id, ct)
-            ?? throw new KeyNotFoundException($"Driver '{cmd.Id}' not found.");
+            ?? throw new DriverNotFoundException(cmd.Id);
 
         driver.Deactivate();
         await _repository.UpdateAsync(driver, ct);

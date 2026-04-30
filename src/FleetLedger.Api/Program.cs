@@ -1,6 +1,10 @@
 using FleetLedger.Application;
 using FleetLedger.Application.Handlers;
+using FleetLedger.Api.Middleware;
+using FleetLedger.Api.Validators;
 using FleetLedger.Infrastructure;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 
@@ -13,6 +17,10 @@ builder.Services.AddDbContext<FleetLedgerDbContext>(opts =>
     opts.UseNpgsql(connectionString));
 
 builder.Services.AddControllers();
+
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<CreateDriverRequestValidator>();
+
 builder.Services.AddScoped<IDepotRepository, DepotRepository>();
 builder.Services.AddScoped<DepotHandler>();
 builder.Services.AddScoped<IDriverRepository, DriverRepository>();
@@ -30,6 +38,8 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+
+app.UseDomainExceptionHandler();
 
 app.UseSwagger();
 app.UseSwaggerUI(c =>

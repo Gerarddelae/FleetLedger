@@ -1,6 +1,7 @@
 using FleetLedger.Application;
 using FleetLedger.Application.Handlers;
 using FleetLedger.Domain;
+using FleetLedger.Api.Contracts.Requests;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FleetLedger.Api.Controllers;
@@ -18,18 +19,12 @@ public class DepotsController : ControllerBase
 
     [HttpPost]
     [ProducesResponseType(typeof(Depot), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status409Conflict)]
-    public async Task<ActionResult<Depot>> Create([FromBody] CreateDepotCommand cmd, CancellationToken ct)
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<Depot>> Create([FromBody] CreateDepotRequest req, CancellationToken ct)
     {
-        try
-        {
-            var depot = await _handler.Handle(cmd, ct);
-            return CreatedAtAction(nameof(GetById), new { id = depot.Id }, depot);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new { error = ex.Message });
-        }
+        var cmd = new CreateDepotCommand(req.Name, req.Address, req.City, req.Region, req.ManagerName, req.Phone);
+        var depot = await _handler.Handle(cmd, ct);
+        return CreatedAtAction(nameof(GetById), new { id = depot.Id }, depot);
     }
 
     [HttpGet]
@@ -42,7 +37,7 @@ public class DepotsController : ControllerBase
 
     [HttpGet("{id}")]
     [ProducesResponseType(typeof(Depot), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<Depot>> GetById(string id, CancellationToken ct)
     {
         var depot = await _handler.Handle(new GetDepotByIdQuery(id), ct);
@@ -53,39 +48,21 @@ public class DepotsController : ControllerBase
 
     [HttpPut("{id}")]
     [ProducesResponseType(typeof(Depot), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status409Conflict)]
-    public async Task<ActionResult<Depot>> Update(string id, [FromBody] UpdateDepotCommand cmd, CancellationToken ct)
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<Depot>> Update(string id, [FromBody] UpdateDepotRequest req, CancellationToken ct)
     {
-        try
-        {
-            var updatedCmd = new UpdateDepotCommand(id, cmd.Name, cmd.Address, cmd.City, cmd.Region, cmd.ManagerName, cmd.Phone);
-            var depot = await _handler.Handle(updatedCmd, ct);
-            return Ok(depot);
-        }
-        catch (KeyNotFoundException)
-        {
-            return NotFound(new { error = $"Depot '{id}' not found." });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new { error = ex.Message });
-        }
+        var cmd = new UpdateDepotCommand(id, req.Name, req.Address, req.City, req.Region, req.ManagerName, req.Phone);
+        var depot = await _handler.Handle(cmd, ct);
+        return Ok(depot);
     }
 
     [HttpDelete("{id}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(object), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(string id, CancellationToken ct)
     {
-        try
-        {
-            await _handler.Handle(new DeactivateDepotCommand(id), ct);
-            return NoContent();
-        }
-        catch (KeyNotFoundException)
-        {
-            return NotFound(new { error = $"Depot '{id}' not found." });
-        }
+        await _handler.Handle(new DeactivateDepotCommand(id), ct);
+        return NoContent();
     }
 }

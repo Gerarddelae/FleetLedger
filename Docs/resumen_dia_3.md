@@ -3,7 +3,7 @@
 ## Fecha: 28 de Abril de 2026
 
 ## Objetivo
-Implementar entidad `Driver` con EF Core (CRUD completo)
+Implementar entidad `Driver` con EF Core (CRUD completo) con validaciones y middleware de excepciones.
 
 ---
 
@@ -13,115 +13,125 @@ Implementar entidad `Driver` con EF Core (CRUD completo)
 FleetLedger/
 ├── src/
 │   ├── FleetLedger.Domain/
-│   │   └── Driver.cs                    ← Nueva entidad
+│   │   ├── Driver.cs                         ← Entidad
+│   │   └── Exceptions/
+│   │       ├── LicenseNumberAlreadyExistsException.cs  ← Nueva
+│   │       ├── DriverNotFoundException.cs          ← Nueva
+│   │       ├── DriverInactiveException.cs          ← Nueva
+│   │       ├── DepotNotFoundException.cs          ← Nueva
+│   │       ├── DepotInactiveException.cs        ← Nueva
+│   │       └── DepotNameAlreadyExistsException.cs  ← Nueva
+│   │
 │   ├── FleetLedger.Infrastructure/
-│   │   ├── FleetLedgerDbContext.cs     ← DbContext actualizado
-│   │   ├── DriverRepository.cs         ← Implementación de repositorio
-│   │   └── Data/Migrations/            ← Migración AddDrivers
+│   │   ├── FleetLedgerDbContext.cs     ← Actualizado con DriverConfiguration
+│   │   └── DriverRepository.cs    ← Implementación de repositorio
+│   │
 │   ├── FleetLedger.Application/
-│   │   ├── IDriverRepository.cs         ← Interfaz de repositorio
-│   │   ├── DriverCommands.cs           ← Commands/Queries
+│   │   ├── IDriverRepository.cs        ← Interfaz de repositorio
+│   │   ├── DriverCommands.cs          ← Commands/Queries
 │   │   └── Handlers/
-│   │       └── DriverHandler.cs         ← Handler
+│   │       └── DriverHandler.cs    ← Handler con nuevas excepciones
+│   │
 │   └── FleetLedger.Api/
-│       └── Controllers/
-│           └── DriversController.cs   ← 5 endpoints REST
+│       ├── Controllers/
+│       │   └── DriversController.cs    ← 5 endpoints REST
+│       ├── Contracts/Requests/
+│       │   └── DriverRequests.cs     ← DTOs de request
+│       ├── Validators/
+│       │   └── CreateDriverRequestValidator.cs  ← FluentValidation
+│       ├── Middleware/
+│       │   └── DomainExceptionMiddleware.cs ← Manejo centralizado
+│       └── Program.cs              ← Configuración de FluentValidation
 ```
 
 ---
 
-## Entidad Driver (Domain)
+## Excepciones de Dominio ( Nuevas )
 
 ```csharp
-public class Driver
-{
-    public string Id { get; private set; }      // formato: DRV-YYYYMMDD-XXXX
-    public string FullName { get; private set; }
-    public string LicenseNumber { get; private set; }  // único
-    public string LicenseCategory { get; private set; }
-    public DateOnly LicenseExpires { get; private set; }
-    public string? Phone { get; private set; }
-    public string? DepotId { get; private set; }   // FK opcional a Depot
-    public bool Active { get; private set; } = true;
-    public DateTime CreatedAt { get; private set; }
-    public DateTime UpdatedAt { get; private set; }
+// 409 Conflict
+LicenseNumberAlreadyExistsException(LicenseNumber)
+DepotNameAlreadyExistsException(Name)
 
-    public static Driver Create(...)   // Factory
-    public void Update(...)          // Actualizar datos
-    public void Deactivate()       // Soft delete
-    public void Activate()        // Reactivar
-}
+// 404 Not Found
+DriverNotFoundException(DriverId)
+DepotNotFoundException(DepotId)
+
+// 422 Unprocessable Entity
+DriverInactiveException(DriverId)
+DepotInactiveException(DepotId)
 ```
 
 ---
 
-## Interfaz y Repositorio (Application)
+## Middleware de Excepciones
+
+El `DomainExceptionMiddleware` intercepta todas las excepciones y las convierte a `ProblemDetails`:
+- `LicenseNumberAlreadyExistsException` → 409 Conflict con `errorCode: LICENSE_NUMBER_ALREADY_EXISTS`
+- `DepotNameAlreadyExistsException` → 409 Conflict con `errorCode: DEPOT_NAME_ALREADY_EXISTS`
+- `DriverNotFoundException` → 404 Not Found
+- `DepotNotFoundException` → 404 Not Found
+- `DriverInactiveException` → 422 Unprocessable Entity
+- `DepotInactiveException` → 422 Unprocessable Entity
+
+---
+
+## Validadores (FluentValidation)
 
 ```csharp
-public interface IDriverRepository
-{
-    Task<Driver?> GetByIdAsync(string id, CancellationToken ct = default);
-    Task<List<Driver>> GetAllAsync(bool? active = null, string? depotId = null, string? licenseCategory = null, CancellationToken ct = default);
-    Task<Driver> AddAsync(Driver driver, CancellationToken ct = default);
-    Task UpdateAsync(Driver driver, CancellationToken ct = default);
-    Task<bool> ExistsWithLicenseNumberAsync(string licenseNumber, CancellationToken ct = default);
-    Task<Driver?> FindByLicenseNumberAsync(string licenseNumber, CancellationToken ct = default);
-}
+CreateDriverRequestValidator
+├── FullName: required, max 200
+├── LicenseNumber: required, max 50
+├── LicenseCategory: required, max 10
+├── LicenseExpires: required, > today
+└── Phone: optional, max 50, formato válido
 ```
 
----
-
-## Commands y Queries (Application)
-
+Los validadores se registran en `Program.cs` con:
 ```csharp
-public record CreateDriverCommand(
-    string FullName,
-    string LicenseNumber,
-    string LicenseCategory,
-    DateOnly LicenseExpires,
-    string? Phone = null,
-    string? DepotId = null
-);
-
-public record UpdateDriverCommand(
-    string Id,
-    string FullName,
-    string LicenseNumber,
-    string LicenseCategory,
-    DateOnly LicenseExpires,
-    string? Phone,
-    string? DepotId
-);
-
-public record DeactivateDriverCommand(string Id);
-public record GetDriversQuery(bool? Active = null, string? DepotId = null, string? LicenseCategory = null);
-public record GetDriverByIdQuery(string Id);
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<CreateDriverRequestValidator>();
 ```
 
 ---
 
-## Reglas de Negocio Implementadas
+## Tests de Integración Configurados
 
-- **Licencia única:** `409 Conflict` si se intenta crear/actualizar con número de licencia duplicado
-- **Depósito válido:** Si se proporciona `DepotId`, debe existir y estar activo
-- **Soft delete:** `DELETE` no elimina físicamente, pone `Active = false`
-- **Filtros en GET:** `?active=true/false`, `?depotId=`, `?licenseCategory=`
+- **DepotEndpointsTests** (~8 tests):
+  - CreateDepot_Returns201_AndValidId
+  - CreateDepot_DuplicateName_Returns409
+  - GetDepot_Existing_Returns200
+  - GetDepot_NonExisting_Returns404
+  - UpdateDepot_Existing_Returns200
+  - UpdateDepot_DuplicateName_Returns409
+  - DeleteDepot_Existing_Returns204_AndSetsInactive
+  - GetDepots_FilterByActive_ReturnsFiltered
+
+- **DriverEndpointsTests** (~10 tests):
+  - CreateDriver_Returns201_AndValidId
+  - CreateDriver_DuplicateLicense_Returns409
+  - CreateDriver_WithInactiveDepot_Returns422
+  - GetDriver_Existing_Returns200
+  - GetDriver_NonExisting_Returns404
+  - UpdateDriver_Existing_Returns200
+  - UpdateDriver_DuplicateLicense_Returns409
+  - DeleteDriver_Existing_Returns204_AndSetsInactive
+  - GetDrivers_FilterByDepot_ReturnsOnlyDriversOfThatDepot
+  - GetDrivers_FilterByLicenseCategory_ReturnsFiltered
 
 ---
 
-## Endpoints API (FleetLedger.Api)
+## Paquetes NuGet Instalados
 
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| POST | `/drivers` | Crear chofer |
-| GET | `/drivers` | Listar chofers (filtros) |
-| GET | `/drivers/{id}` | Obtener chofer por ID |
-| PUT | `/drivers/{id}` | Actualizar datos del chofer |
-| DELETE | `/drivers/{id}` | Soft delete |
+| Proyecto | Paquete | Versión |
+|----------|---------|---------|
+| FleetLedger.Api | FluentValidation.AspNetCore | 11.3.0 |
+| FleetLedger.Integration.Tests | Testcontainers.PostgreSql | 4.1.0 |
+| FleetLedger.Integration.Tests | Microsoft.AspNetCore.Mvc.Testing | 10.0.7 |
 
 ---
 
-## Migración Aplicada
+## Migrations Aplicadas
 
 ```
 Migración: 20260428175606_AddDrivers
@@ -132,11 +142,12 @@ FK: DepotId -> Depots (optional, nullable)
 
 ---
 
-## Integración con Depot
+## Cambios en Controladores
 
-- `Driver` tiene una relación opcional con `Depot` (`DepotId` como FK)
-- Al crear/actualizar un driver, se valida que el Depot exista y esté activo
-- El handler `DriverHandler` usa `IDepotRepository` para validar la relación
+Los controladores ahora:
+- Usan los nuevos DTOs (`CreateDriverRequest`, `UpdateDriverRequest`)
+- Delegan manejo de errores al middleware (sin try/catch)
+- Devuelven `ProblemDetails` para errores 409/404/422
 
 ---
 
@@ -150,22 +161,10 @@ Compilación correcta.
 
 ---
 
-## Notas Adicionales
-
-- Misma estructura y patrones que `Depot` ( Día 2)
-- Reutilización de Configuration patterns de EF Core
-- Validaciones de negocio en el Handler (no en el controlador)
-
----
-
 ## Siguiente Paso
 
-**Día 4**: Implementar entidad `Vehicle` con EF Core (CRUD completo)
-
-Campos específicos:
-- `Plate` (único)
-- `VehicleType`
-- `Model`
-- `Year`
-- `Capacity`
-- `DepotId` (FK opcional)
+**Día 4**: Validación cruzada y refinamiento del CRUD
+- Agregar validación de input con FluentValidation en los requests de Driver y Depot
+- Tests de integración completos para el CRUD
+- Documentar en Swagger los casos de error de cada endpoint
+- Verificar que GET /drivers?depotId= retorna solo conductores de ese depósito

@@ -1,5 +1,6 @@
 using FleetLedger.Application;
 using FleetLedger.Domain;
+using FleetLedger.Domain.Exceptions;
 
 namespace FleetLedger.Application.Handlers;
 
@@ -16,7 +17,7 @@ public class DepotHandler
     {
         var exists = await _repository.ExistsWithNameAsync(cmd.Name, ct);
         if (exists)
-            throw new InvalidOperationException($"Depot with name '{cmd.Name}' already exists.");
+            throw new DepotNameAlreadyExistsException(cmd.Name);
 
         var depot = Depot.Create(
             cmd.Name,
@@ -33,11 +34,11 @@ public class DepotHandler
     public async Task<Depot> Handle(UpdateDepotCommand cmd, CancellationToken ct)
     {
         var depot = await _repository.GetByIdAsync(cmd.Id, ct)
-            ?? throw new KeyNotFoundException($"Depot '{cmd.Id}' not found.");
+            ?? throw new DepotNotFoundException(cmd.Id);
 
         var existingWithName = await _repository.FindByNameAsync(cmd.Name, ct);
         if (existingWithName != null && existingWithName.Id != cmd.Id)
-            throw new InvalidOperationException($"Depot with name '{cmd.Name}' already exists.");
+            throw new DepotNameAlreadyExistsException(cmd.Name);
 
         depot.Update(
             cmd.Name,
@@ -55,7 +56,7 @@ public class DepotHandler
     public async Task Handle(DeactivateDepotCommand cmd, CancellationToken ct)
     {
         var depot = await _repository.GetByIdAsync(cmd.Id, ct)
-            ?? throw new KeyNotFoundException($"Depot '{cmd.Id}' not found.");
+            ?? throw new DepotNotFoundException(cmd.Id);
 
         depot.Deactivate();
         await _repository.UpdateAsync(depot, ct);
