@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using FleetLedger.Api.Contracts.Requests;
-using FleetLedger.Domain;
+using FleetLedger.Api.Contracts.Responses;
 using FleetLedger.Integration.Tests.Fixtures;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
@@ -27,7 +27,7 @@ public class DepotEndpointsTests : IClassFixture<TestWebApplicationFactory>
         var response = await _client.PostAsJsonAsync("/depots", request);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var depot = await response.Content.ReadFromJsonAsync<Depot>();
+        var depot = await response.Content.ReadFromJsonAsync<DepotResponse>();
         Assert.NotNull(depot);
         Assert.StartsWith("DEP-", depot.Id);
     }
@@ -48,7 +48,7 @@ public class DepotEndpointsTests : IClassFixture<TestWebApplicationFactory>
     {
         var createRequest = new CreateDepotRequest("Get Test Depot", "123 Test St", "Test City");
         var createResponse = await _client.PostAsJsonAsync("/depots", createRequest);
-        var depot = await createResponse.Content.ReadFromJsonAsync<Depot>();
+        var depot = await createResponse.Content.ReadFromJsonAsync<DepotResponse>();
 
         var response = await _client.GetAsync($"/depots/{depot!.Id}");
 
@@ -68,13 +68,13 @@ public class DepotEndpointsTests : IClassFixture<TestWebApplicationFactory>
     {
         var createRequest = new CreateDepotRequest("Update Test Depot", "123 Test St", "Test City");
         var createResponse = await _client.PostAsJsonAsync("/depots", createRequest);
-        var depot = await createResponse.Content.ReadFromJsonAsync<Depot>();
+        var depot = await createResponse.Content.ReadFromJsonAsync<DepotResponse>();
 
         var updateRequest = new UpdateDepotRequest("Updated Depot", "456 New St", "New City");
         var response = await _client.PutAsJsonAsync($"/depots/{depot!.Id}", updateRequest);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var updated = await response.Content.ReadFromJsonAsync<Depot>();
+        var updated = await response.Content.ReadFromJsonAsync<DepotResponse>();
         Assert.Equal("Updated Depot", updated!.Name);
     }
 
@@ -85,10 +85,10 @@ public class DepotEndpointsTests : IClassFixture<TestWebApplicationFactory>
         var request2 = new CreateDepotRequest("Second Depot", "456 Test St", "Test City");
 
         var r1 = await _client.PostAsJsonAsync("/depots", request1);
-        var d1 = await r1.Content.ReadFromJsonAsync<Depot>();
+        var d1 = await r1.Content.ReadFromJsonAsync<DepotResponse>();
         await _client.PostAsJsonAsync("/depots", request2);
 
-        var updateRequest = new UpdateDepotRequest("First Depot", "123 Test St", "Test City");
+        var updateRequest = new UpdateDepotRequest("Second Depot", "123 Test St", "Test City");
         var response = await _client.PutAsJsonAsync($"/depots/{d1!.Id}", updateRequest);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
@@ -99,14 +99,14 @@ public class DepotEndpointsTests : IClassFixture<TestWebApplicationFactory>
     {
         var createRequest = new CreateDepotRequest("Delete Test Depot", "123 Test St", "Test City");
         var createResponse = await _client.PostAsJsonAsync("/depots", createRequest);
-        var depot = await createResponse.Content.ReadFromJsonAsync<Depot>();
+        var depot = await createResponse.Content.ReadFromJsonAsync<DepotResponse>();
 
         var response = await _client.DeleteAsync($"/depots/{depot!.Id}");
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
 
         var getResponse = await _client.GetAsync("/depots?active=true");
-        var depots = await getResponse.Content.ReadFromJsonAsync<List<Depot>>();
+        var depots = await getResponse.Content.ReadFromJsonAsync<List<DepotResponse>>();
         Assert.DoesNotContain(depots!, d => d.Id == depot.Id);
     }
 
@@ -119,10 +119,10 @@ public class DepotEndpointsTests : IClassFixture<TestWebApplicationFactory>
         await _client.PostAsJsonAsync("/depots", new CreateDepotRequest("Inactive Depot", "123 Test St", "Test City"));
 
         var activeResponse = await _client.GetAsync("/depots?active=true");
-        var activeDepots = await activeResponse.Content.ReadFromJsonAsync<List<Depot>>();
+        var activeDepots = await activeResponse.Content.ReadFromJsonAsync<List<DepotResponse>>();
 
         activeResponse = await _client.GetAsync("/depots?active=false");
-        var inactiveDepots = await activeResponse.Content.ReadFromJsonAsync<List<Depot>>();
+        var inactiveDepots = await activeResponse.Content.ReadFromJsonAsync<List<DepotResponse>>();
 
         Assert.NotEmpty(activeDepots!);
         Assert.NotEmpty(inactiveDepots!);

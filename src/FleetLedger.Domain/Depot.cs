@@ -35,7 +35,7 @@ public class Depot
 
     private static string GenerateId(DateTime timestamp)
     {
-        return $"DEP-{timestamp:yyyyMMdd}-XXXX";
+        return $"DEP-{timestamp:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..4].ToUpper()}";
     }
 
     public void Update(string name, string address, string city, string? region, string? managerName, string? phone)

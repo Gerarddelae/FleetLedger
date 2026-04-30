@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using FleetLedger.Api.Contracts.Requests;
-using FleetLedger.Domain;
+using FleetLedger.Api.Contracts.Responses;
 using FleetLedger.Integration.Tests.Fixtures;
 using Xunit;
 
@@ -26,7 +26,7 @@ public class DriverEndpointsTests : IClassFixture<TestWebApplicationFactory>
         var response = await _client.PostAsJsonAsync("/drivers", request);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var driver = await response.Content.ReadFromJsonAsync<Driver>();
+        var driver = await response.Content.ReadFromJsonAsync<DriverResponse>();
         Assert.NotNull(driver);
         Assert.StartsWith("DRV-", driver.Id);
     }
@@ -49,7 +49,7 @@ public class DriverEndpointsTests : IClassFixture<TestWebApplicationFactory>
         await _client.PostAsJsonAsync("/depots", depotRequest);
 
         var inactiveDepotResponse = await _client.GetAsync("/depots");
-        var depots = await inactiveDepotResponse.Content.ReadFromJsonAsync<List<Depot>>();
+        var depots = await inactiveDepotResponse.Content.ReadFromJsonAsync<List<DepotResponse>>();
         var depot = depots!.First();
         await _client.DeleteAsync($"/depots/{depot.Id}");
 
@@ -64,7 +64,7 @@ public class DriverEndpointsTests : IClassFixture<TestWebApplicationFactory>
     {
         var createRequest = new CreateDriverRequest("Test Driver", "LICENSE456", "C", DateOnly.FromDateTime(DateTime.Today.AddYears(1)));
         var createResponse = await _client.PostAsJsonAsync("/drivers", createRequest);
-        var driver = await createResponse.Content.ReadFromJsonAsync<Driver>();
+        var driver = await createResponse.Content.ReadFromJsonAsync<DriverResponse>();
 
         var response = await _client.GetAsync($"/drivers/{driver!.Id}");
 
@@ -84,13 +84,13 @@ public class DriverEndpointsTests : IClassFixture<TestWebApplicationFactory>
     {
         var createRequest = new CreateDriverRequest("Update Test", "UPDATELICENSE", "C", DateOnly.FromDateTime(DateTime.Today.AddYears(1)));
         var createResponse = await _client.PostAsJsonAsync("/drivers", createRequest);
-        var driver = await createResponse.Content.ReadFromJsonAsync<Driver>();
+        var driver = await createResponse.Content.ReadFromJsonAsync<DriverResponse>();
 
         var updateRequest = new UpdateDriverRequest("Updated Name", "UPDATELICENSE", "D", DateOnly.FromDateTime(DateTime.Today.AddYears(1)));
         var response = await _client.PutAsJsonAsync($"/drivers/{driver!.Id}", updateRequest);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var updated = await response.Content.ReadFromJsonAsync<Driver>();
+        var updated = await response.Content.ReadFromJsonAsync<DriverResponse>();
         Assert.Equal("Updated Name", updated!.FullName);
     }
 
@@ -101,10 +101,10 @@ public class DriverEndpointsTests : IClassFixture<TestWebApplicationFactory>
         var request2 = new CreateDriverRequest("Second", "LIC2", "C", DateOnly.FromDateTime(DateTime.Today.AddYears(1)));
 
         var r1 = await _client.PostAsJsonAsync("/drivers", request1);
-        var d1 = await r1.Content.ReadFromJsonAsync<Driver>();
+        var d1 = await r1.Content.ReadFromJsonAsync<DriverResponse>();
         await _client.PostAsJsonAsync("/drivers", request2);
 
-        var updateRequest = new UpdateDriverRequest("Second Name", "LIC1", "C", DateOnly.FromDateTime(DateTime.Today.AddYears(1)));
+        var updateRequest = new UpdateDriverRequest("Second Name", "LIC2", "C", DateOnly.FromDateTime(DateTime.Today.AddYears(1)));
         var response = await _client.PutAsJsonAsync($"/drivers/{d1!.Id}", updateRequest);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
@@ -115,14 +115,14 @@ public class DriverEndpointsTests : IClassFixture<TestWebApplicationFactory>
     {
         var createRequest = new CreateDriverRequest("Delete Test", "DELETELIC", "C", DateOnly.FromDateTime(DateTime.Today.AddYears(1)));
         var createResponse = await _client.PostAsJsonAsync("/drivers", createRequest);
-        var driver = await createResponse.Content.ReadFromJsonAsync<Driver>();
+        var driver = await createResponse.Content.ReadFromJsonAsync<DriverResponse>();
 
         var response = await _client.DeleteAsync($"/drivers/{driver!.Id}");
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
 
         var getResponse = await _client.GetAsync("/drivers?active=true");
-        var drivers = await getResponse.Content.ReadFromJsonAsync<List<Driver>>();
+        var drivers = await getResponse.Content.ReadFromJsonAsync<List<DriverResponse>>();
         Assert.DoesNotContain(drivers!, d => d.Id == driver.Id);
     }
 
@@ -131,7 +131,7 @@ public class DriverEndpointsTests : IClassFixture<TestWebApplicationFactory>
     {
         var depotRequest = new CreateDepotRequest("Filter Depot", "123 Test St", "Test City");
         var depotResponse = await _client.PostAsJsonAsync("/depots", depotRequest);
-        var depot = await depotResponse.Content.ReadFromJsonAsync<Depot>();
+        var depot = await depotResponse.Content.ReadFromJsonAsync<DepotResponse>();
 
         var driverRequest1 = new CreateDriverRequest("Driver 1", "LICFILTER1", "C", DateOnly.FromDateTime(DateTime.Today.AddYears(1)), null, depot!.Id);
         var driverRequest2 = new CreateDriverRequest("Driver 2", "LICFILTER2", "C", DateOnly.FromDateTime(DateTime.Today.AddYears(1)));
@@ -140,10 +140,10 @@ public class DriverEndpointsTests : IClassFixture<TestWebApplicationFactory>
         await _client.PostAsJsonAsync("/drivers", driverRequest2);
 
         var response = await _client.GetAsync($"/drivers?depotId={depot.Id}");
-        var drivers = await response.Content.ReadFromJsonAsync<List<Driver>>();
+        var drivers = await response.Content.ReadFromJsonAsync<List<DriverResponse>>();
 
-        Assert.Single(drivers!);
-        Assert.Equal(depot.Id, drivers[0].DepotId);
+        var singleDriver = Assert.Single(drivers!);
+        Assert.Equal(depot.Id, singleDriver.DepotId);
     }
 
     [Fact]
@@ -156,9 +156,9 @@ public class DriverEndpointsTests : IClassFixture<TestWebApplicationFactory>
         await _client.PostAsJsonAsync("/drivers", requestD);
 
         var responseC = await _client.GetAsync("/drivers?licenseCategory=C");
-        var cDrivers = await responseC.Content.ReadFromJsonAsync<List<Driver>>();
+        var cDrivers = await responseC.Content.ReadFromJsonAsync<List<DriverResponse>>();
         var responseD = await _client.GetAsync("/drivers?licenseCategory=D");
-        var dDrivers = await responseD.Content.ReadFromJsonAsync<List<Driver>>();
+        var dDrivers = await responseD.Content.ReadFromJsonAsync<List<DriverResponse>>();
 
         Assert.Single(cDrivers!);
         Assert.Single(dDrivers!);

@@ -47,19 +47,14 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
         builder.UseSetting("ConnectionStrings:Default", _dbFixture.ConnectionString);
     }
 
-    public async Task InitializeAsync()
+    async Task IAsyncLifetime.InitializeAsync()
     {
-        await _dbFixture.InitializeAsync();
-        
         using var scope = Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<FleetLedgerDbContext>();
         await db.Database.EnsureCreatedAsync();
     }
 
-    public async Task DisposeAsync()
-    {
-        await _dbFixture.DisposeAsync();
-    }
+    Task IAsyncLifetime.DisposeAsync() => Task.CompletedTask;
 }
 
 [CollectionDefinition("Integration Tests")]

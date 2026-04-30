@@ -35,7 +35,7 @@ public class Driver
 
     private static string GenerateId(DateTime timestamp)
     {
-        return $"DRV-{timestamp:yyyyMMdd}-XXXX";
+        return $"DRV-{timestamp:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..4].ToUpper()}";
     }
 
     public void Update(string fullName, string licenseNumber, string licenseCategory, DateOnly licenseExpires, string? phone, string? depotId)

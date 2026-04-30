@@ -1,7 +1,7 @@
 using FleetLedger.Application;
 using FleetLedger.Application.Handlers;
-using FleetLedger.Domain;
 using FleetLedger.Api.Contracts.Requests;
+using FleetLedger.Api.Contracts.Responses;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FleetLedger.Api.Controllers;
@@ -18,43 +18,43 @@ public class DepotsController : ControllerBase
     }
 
     [HttpPost]
-    [ProducesResponseType(typeof(Depot), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(DepotResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    public async Task<ActionResult<Depot>> Create([FromBody] CreateDepotRequest req, CancellationToken ct)
+    public async Task<ActionResult<DepotResponse>> Create([FromBody] CreateDepotRequest req, CancellationToken ct)
     {
         var cmd = new CreateDepotCommand(req.Name, req.Address, req.City, req.Region, req.ManagerName, req.Phone);
         var depot = await _handler.Handle(cmd, ct);
-        return CreatedAtAction(nameof(GetById), new { id = depot.Id }, depot);
+        return CreatedAtAction(nameof(GetById), new { id = depot.Id }, depot.ToResponse());
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(List<Depot>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<List<Depot>>> GetAll([FromQuery] bool? active, [FromQuery] string? region, CancellationToken ct)
+    [ProducesResponseType(typeof(List<DepotResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<DepotResponse>>> GetAll([FromQuery] bool? active, [FromQuery] string? region, CancellationToken ct)
     {
         var depots = await _handler.Handle(new GetDepotsQuery(active, region), ct);
-        return Ok(depots);
+        return Ok(depots.Select(d => d.ToResponse()).ToList());
     }
 
     [HttpGet("{id}")]
-    [ProducesResponseType(typeof(Depot), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(DepotResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<Depot>> GetById(string id, CancellationToken ct)
+    public async Task<ActionResult<DepotResponse>> GetById(string id, CancellationToken ct)
     {
         var depot = await _handler.Handle(new GetDepotByIdQuery(id), ct);
         if (depot == null)
             return NotFound(new { error = $"Depot '{id}' not found." });
-        return Ok(depot);
+        return Ok(depot.ToResponse());
     }
 
     [HttpPut("{id}")]
-    [ProducesResponseType(typeof(Depot), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(DepotResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    public async Task<ActionResult<Depot>> Update(string id, [FromBody] UpdateDepotRequest req, CancellationToken ct)
+    public async Task<ActionResult<DepotResponse>> Update(string id, [FromBody] UpdateDepotRequest req, CancellationToken ct)
     {
         var cmd = new UpdateDepotCommand(id, req.Name, req.Address, req.City, req.Region, req.ManagerName, req.Phone);
         var depot = await _handler.Handle(cmd, ct);
-        return Ok(depot);
+        return Ok(depot.ToResponse());
     }
 
     [HttpDelete("{id}")]
